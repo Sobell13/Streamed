@@ -1,0 +1,22 @@
+[
+    {
+        "iconUrl": "https://streamed.pk/favicon.png",
+        "fileHash": "sha256-697e4679580fcdf6f383160be1faac3a74e6171a1110888c95fe755d9624636f",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/Sobell13/Streamed",
+        "fileSize": 38007,
+        "status": 3,
+        "language": "en",
+        "authors": [
+            "Vaellys"
+        ],
+        "tvTypes": [
+            "Live"
+        ],
+        "version": 1,
+        "internalName": "Streamed",
+        "description": "Streamed.pk extension",
+        "url": "https://raw.githubusercontent.com/Sobell13/Streamed/builds/Streamed.cs3",
+        "name": "Streamed"
+    }
+]
