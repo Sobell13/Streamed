@@ -70,6 +70,7 @@ class Streamed : MainAPI() {
     )
 
     private val mapper = jacksonObjectMapper()
+    private val genericEmbedExtractor = EmbedStreams()
     private val matchCache = mutableMapOf<String, MatchCacheEntry>()
     private val matchCacheMutex = Mutex()
     private val streamRequestSemaphore = Semaphore(MAX_CONCURRENT_STREAM_REQUESTS)
@@ -155,11 +156,28 @@ class Streamed : MainAPI() {
             val extractedLinks = mutableListOf<ExtractorLink>()
 
             try {
-                loadExtractor(
+                val extractorMatched = loadExtractor(
                     url = stream.embedUrl,
                     referer = mainUrl,
                     subtitleCallback = subtitleCallback,
                     callback = extractedLinks::add,
+                )
+
+                // Streamed's embedUrl is normally an iframe/player page, not the HLS URL.
+                // loadExtractor only runs when the URL matches a registered extractor domain,
+                // so use the generic WebView resolver when no extractor emitted a link.
+                if (extractedLinks.isEmpty() && !M3U8_URL_REGEX.containsMatchIn(stream.embedUrl)) {
+                    genericEmbedExtractor.getUrl(
+                        url = stream.embedUrl,
+                        referer = mainUrl,
+                        subtitleCallback = subtitleCallback,
+                        callback = extractedLinks::add,
+                    )
+                }
+
+                Log.d(
+                    TAG,
+                    "embed=${stream.embedUrl}, extractorMatched=$extractorMatched, links=${extractedLinks.size}",
                 )
 
                 if (extractedLinks.isEmpty() && M3U8_URL_REGEX.containsMatchIn(stream.embedUrl)) {
@@ -386,7 +404,7 @@ class Streamed : MainAPI() {
 
     private fun matchUrl(id: String): String {
         val encodedId = URLEncoder.encode(id, Charsets.UTF_8.name())
-        return "$mainUrl/match/$encodedId"
+        return "$mainUrl/watch/$encodedId"
     }
 
     private fun decodeMatchId(url: String): String? {

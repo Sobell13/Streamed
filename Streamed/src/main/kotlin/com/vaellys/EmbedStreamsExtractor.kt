@@ -86,20 +86,32 @@ open class EmbedStreams : ExtractorApi() {
     }
 
     private companion object {
-        const val WEBVIEW_TIMEOUT_MS = 15_000L
+        const val WEBVIEW_TIMEOUT_MS = 30_000L
         val M3U8_URL_REGEX = Regex("(?i)\\.m3u8(?:[?#].*)?$")
 
         val PLAY_SCRIPT = """
-            setTimeout(function () {
-                try {
-                    const playButton = document.querySelector('.jw-icon-display');
-                    if (playButton) {
-                        playButton.click();
-                    } else if (typeof jwplayer !== 'undefined') {
-                        jwplayer().play();
-                    }
-                } catch (_) {}
-            }, 1500);
+            (() => {
+                const tryPlay = () => {
+                    try {
+                        document.querySelector(
+                            '.jw-icon-display, .vjs-big-play-button, .plyr__control--overlaid'
+                        )?.click();
+
+                        document.querySelectorAll('video').forEach(video => {
+                            video.muted = true;
+                            video.play().catch(() => {});
+                        });
+
+                        if (typeof jwplayer === 'function') {
+                            jwplayer().play(true);
+                        }
+                    } catch (_) {}
+                };
+
+                tryPlay();
+                setTimeout(tryPlay, 500);
+                setTimeout(tryPlay, 1500);
+            })();
         """.trimIndent()
     }
 }
