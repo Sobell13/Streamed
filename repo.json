@@ -4,6 +4,6 @@
     "description": "Streamed.pk extension",
     "manifestVersion": 1,
     "pluginLists": [
-        "https://raw.githubusercontent.com/Sobell13/Streamed/main/plugins.json"
+        "https://raw.githubusercontent.com/Sobell13/Streamed/refs/heads/builds/plugins.json"
     ]
 }
