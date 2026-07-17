@@ -1,0 +1,9 @@
+{
+    "iconUrl": "https://streamed.pk/favicon.png",
+    "name": "Streamed",
+    "description": "Streamed.pk extension",
+    "manifestVersion": 1,
+    "pluginLists": [
+        "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/refs/heads/builds/plugins.json"
+    ]
+}
