@@ -34,7 +34,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import java.net.URLDecoder
-import java.net.URLEncoder
 import java.text.Normalizer
 import java.util.Locale
 
@@ -113,8 +112,15 @@ class Streamed : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val matchId = decodeMatchId(url) ?: return null
-        val match = findMatch(matchId) ?: return null
+        // SearchResponse.url is provider-owned opaque data. Prefer carrying the
+        // complete match object instead of using streamed.pk/watch/... as an
+        // intermediate URL. Keep the URL fallback for old bookmarks/history.
+        val match = runCatching {
+            mapper.readValue<ApiMatch>(url)
+        }.getOrNull() ?: run {
+            val matchId = decodeMatchId(url) ?: return null
+            findMatch(matchId) ?: return null
+        }
 
         val loadData = mapper.writeValueAsString(
             StreamLoadData(
@@ -306,10 +312,20 @@ class Streamed : MainAPI() {
 
     private fun ApiMatch.toSearchResponse(): SearchResponse {
         val resolvedPoster = resolvePoster(this)
+
+        // CloudStream explicitly supports JSON as SearchResponse.url. Using the
+        // match payload here means load() can build the details page without
+        // navigating to or re-fetching streamed.pk/watch/....
+        val matchData = mapper.writeValueAsString(this)
+
         return newLiveSearchResponse(
             name = title,
-            url = matchUrl(id),
-            type = TvType.Live,
+            url = matchData,
+
+            // Some CloudStream builds special-case Live search cards as direct
+            // playback items. Movie here forces the normal details-page flow;
+            // load() still returns LiveStreamLoadResponse, so playback remains live.
+            type = TvType.Movie,
         ) {
             posterUrl = resolvedPoster
             posterHeaders = resolvedPoster?.let { POSTER_HEADERS }
@@ -400,11 +416,6 @@ class Streamed : MainAPI() {
             .replace(NON_ALPHANUMERIC_REGEX, " ")
             .replace(MULTIPLE_SPACES_REGEX, " ")
             .trim()
-    }
-
-    private fun matchUrl(id: String): String {
-        val encodedId = URLEncoder.encode(id, Charsets.UTF_8.name())
-        return "$mainUrl/watch/$encodedId"
     }
 
     private fun decodeMatchId(url: String): String? {
