@@ -11,6 +11,9 @@ on:
       - main
     paths-ignore:
       - '*.md'
+      - '.github/workflows/**'
+      - 'repo.json'
+      - 'DomainCheck.py'
 
 permissions:
   contents: write
@@ -24,11 +27,24 @@ jobs:
         with:
           path: "src"
 
-      - name: Checkout builds
+      - name: Checkout build storage
         uses: actions/checkout@v4
         with:
-          ref: "builds"
           path: "builds"
+          fetch-depth: 1
+
+      - name: Checkout or create builds branch
+        working-directory: builds
+        shell: bash
+        run: |
+          if git fetch --depth=1 origin refs/heads/builds; then
+            echo "Using existing builds branch"
+            git checkout -B builds FETCH_HEAD
+          else
+            echo "Creating builds branch for the first time"
+            git checkout --orphan builds
+            git rm -rf . || true
+          fi
 
       - name: Clean old builds
         run: rm -f $GITHUB_WORKSPACE/builds/*.cs3
@@ -52,13 +68,23 @@ jobs:
           cp build/plugins.json $GITHUB_WORKSPACE/builds || true
 
       - name: Push builds
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: builds
+        shell: bash
         run: |
-          cd $GITHUB_WORKSPACE/builds
-          git config --local user.email "actions@github.com"
-          git config --local user.name "GitHub Actions"
-          git add .
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git commit --amend -m "Build $GITHUB_SHA" || git commit -m "Build $GITHUB_SHA" || exit 0
-          git push origin builds --force
+          git config user.email "19193335+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No build changes"
+            exit 0
+          fi
+
+          if git rev-parse --verify HEAD >/dev/null 2>&1; then
+            git commit --amend -m "Build $GITHUB_SHA"
+          else
+            git commit -m "Build $GITHUB_SHA"
+          fi
+
+          git push origin HEAD:builds --force

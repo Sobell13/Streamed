@@ -1,0 +1,59 @@
+name: Domain Vaellys
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 25 */6 * * *
+
+jobs:
+  DomainControl:
+    runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_NAME: ${{ github.event.repository.name }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Inventory Control
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+
+      - name: Setup Python 3.11.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11.8
+
+      - name: Show Python Version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Upload Requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -U setuptools wheel cloudscraper pycryptodome
+
+      - name: Run the Script
+        run: python DomainCheck.py
+
+      - name: Change Control
+        id: change_control
+        run: |
+          git diff --quiet . || echo "control=true" >> $GITHUB_OUTPUT || true
+
+      - name: Push Changes
+        if: steps.change_control.outputs.control == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "19193335+github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          
+          git commit -m "🤖 Domain Update" \
+            -m "🤖 Automatic domain updates have been applied."
+          
+          git push origin master
